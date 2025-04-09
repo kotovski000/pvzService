@@ -1,82 +1,61 @@
 package handlers
 
 import (
-	"database/sql"
-	"errors"
-	"time"
-
+	"fmt"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
-
 	"pvzService/internal/models"
 )
 
-func CreateReceptionHandler(db *sql.DB) fiber.Handler {
+func (h *Handler) CreateReceptionHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var body struct {
 			PvzId string `json:"pvzId"`
 		}
 		if err := c.BodyParser(&body); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid request"})
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid request body format"})
 		}
 
-		_, err := uuid.Parse(body.PvzId)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid pvzId format"})
+		claims, ok := c.Locals("claims").(map[string]interface{})
+		if !ok {
+			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Failed to get claims from context"})
 		}
 
-		var openReceptionExists bool
-		err = db.QueryRow("SELECT EXISTS (SELECT 1 FROM receptions WHERE pvz_id = $1 AND status = 'in_progress')", body.PvzId).Scan(&openReceptionExists)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Database error"})
-		}
-		if openReceptionExists {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Open reception already exists for this PVZ"})
+		role, ok := claims["role"].(string)
+		if !ok || role != "employee" {
+			return c.Status(fiber.StatusForbidden).JSON(models.Error{Message: "Insufficient role"})
 		}
 
-		receptionID := uuid.New().String()
-		_, err = db.Exec("INSERT INTO receptions (id, pvz_id, status) VALUES ($1, $2, $3)", receptionID, body.PvzId, "in_progress")
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Failed to create reception"})
-		}
+		reception, err := h.Processor.CreateReception(body.PvzId)
 
-		var reception models.Reception
-		err = db.QueryRow("SELECT id, created_at, pvz_id, status FROM receptions WHERE id = $1", receptionID).Scan(&reception.ID, &reception.DateTime, &reception.PvzId, &reception.Status)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Failed to retrieve reception"})
+			fmt.Println(err)
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: err.Error()})
 		}
 
 		return c.Status(fiber.StatusCreated).JSON(reception)
 	}
 }
 
-func CloseLastReceptionHandler(db *sql.DB) fiber.Handler {
+func (h *Handler) CloseLastReceptionHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		pvzId := c.Params("pvzId")
 
-		_, err := uuid.Parse(pvzId)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid pvzId format"})
+		claims, ok := c.Locals("claims").(map[string]interface{})
+		if !ok {
+			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Failed to get claims from context"})
 		}
 
-		var reception models.Reception
-		err = db.QueryRow("SELECT id, created_at, pvz_id, status, closed_at FROM receptions WHERE pvz_id = $1 AND status = 'in_progress'", pvzId).Scan(&reception.ID, &reception.DateTime, &reception.PvzId, &reception.Status, &reception.ClosedAt)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "No open reception found for this PVZ"})
-			}
-			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Database error"})
+		role, ok := claims["role"].(string)
+		if !ok || role != "employee" {
+			return c.Status(fiber.StatusForbidden).JSON(models.Error{Message: "Insufficient role"})
 		}
 
-		now := time.Now()
-		_, err = db.Exec("UPDATE receptions SET status = 'close', closed_at = $1 WHERE id = $2", now, reception.ID)
+		reception, err := h.Processor.CloseLastReception(pvzId)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{Message: "Failed to close reception"})
+			fmt.Println(err)
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: err.Error()})
 		}
 
-		reception.Status = "close"
-		reception.ClosedAt = &now
-
-		return c.JSON(reception)
+		return c.Status(fiber.StatusOK).JSON(reception)
 	}
 }
