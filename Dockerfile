@@ -1,7 +1,7 @@
 FROM golang:1.23.0
 
-WORKDIR ${GOPATH}/pvz-service/
-COPY . ${GOPATH}/pvz-service/
+WORKDIR ${GOPATH}/pvz-shop/
+COPY . ${GOPATH}/pvz-shop/
 
 RUN go build -o /build ./cmd \
     && go clean -cache -modcache

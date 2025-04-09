@@ -53,5 +53,5 @@ func main() {
 	//api.Post("/pvz/:pvzId/delete_last_product", middleware.CheckRole("employee"), handlers.DeleteLastProductHandler(database))
 
 	log.Printf("Server listening on port %s", cfg.Port)
-	log.Fatal(app.Listen(fmt.Sprintf(":%s", cfg.Port)))
+	log.Fatal(app.Listen(fmt.Sprintf("0.0.0.0:%s", cfg.Port)))
 }
