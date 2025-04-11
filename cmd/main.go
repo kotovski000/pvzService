@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	"log"
+	"net/http"
 
 	"pvzService/internal/config"
 	"pvzService/internal/db"
@@ -14,7 +15,19 @@ import (
 	"pvzService/internal/middleware"
 	"pvzService/internal/processors"
 	"pvzService/internal/repository"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+func startMetricsServer() {
+	http.Handle("/metrics", promhttp.Handler())
+	go func() {
+		log.Println("Starting metrics server on :9000")
+		if err := http.ListenAndServe(":9000", nil); err != nil {
+			log.Printf("Metrics server error: %v", err)
+		}
+	}()
+}
 
 func main() {
 	// Load .env file
@@ -51,8 +64,12 @@ func main() {
 
 	app := fiber.New()
 
+	// Запускаем сервер метрик
+	startMetricsServer()
+
 	app.Use(cors.New())
 	app.Use(logger.New())
+	app.Use(middleware.PrometheusMiddleware()) // Добавляем Prometheus middleware
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.SendString("OK")

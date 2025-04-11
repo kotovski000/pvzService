@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"pvzService/internal/middleware"
 
 	"pvzService/internal/models"
 	"pvzService/internal/processors"
@@ -34,6 +35,7 @@ func (h *ReceptionHandlers) CreateReceptionHandler() fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: err.Error()})
 		}
 
+		middleware.OrderAcceptancesCreated.Inc()
 		return c.Status(fiber.StatusCreated).JSON(reception)
 	}
 }

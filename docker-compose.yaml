@@ -4,6 +4,7 @@ services:
     container_name: pvz-shop-service
     ports:
       - "8080:8080"
+      - "9000:9000"  # Добавляем порт для метрик Prometheus
     environment:
       # енвы подключения к БД
       - DATABASE_PORT=${DATABASE_PORT}
@@ -38,6 +39,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - internal
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - pvz-service
     networks:
       - internal
 networks:
