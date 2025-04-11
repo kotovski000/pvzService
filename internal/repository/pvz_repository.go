@@ -37,21 +37,21 @@ func (r *PVZRepository) GetPVZByID(id string) (models.PVZ, error) {
 	return pvz, err
 }
 
-type PVZWithRelations struct {
-	PVZ        models.PVZ
-	Receptions []ReceptionWithProducts
+type PVZResponse struct {
+	PVZ        models.PVZ          `json:"pvz"`
+	Receptions []ReceptionResponse `json:"receptions"`
 }
 
-type ReceptionWithProducts struct {
-	Reception models.Reception
-	Products  []models.Product
+type ReceptionResponse struct {
+	Reception models.Reception `json:"reception"`
+	Products  []models.Product `json:"products"`
 }
 
-func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limit, offset int) ([]PVZWithRelations, error) {
+func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limit, offset int) ([]PVZResponse, error) {
 	var rows *sql.Rows
 	var err error
 
-	baseQuery := `
+	query := `
         SELECT 
             p.id, p.registration_date, p.city,
             r.id, r.created_at, r.pvz_id, r.status, r.closed_at,
@@ -62,14 +62,14 @@ func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limi
     `
 
 	if !startDate.IsZero() && !endDate.IsZero() {
-		baseQuery += " WHERE p.registration_date >= $1 AND p.registration_date <= $2"
-		baseQuery += " ORDER BY p.registration_date"
-		baseQuery += " LIMIT $3 OFFSET $4"
-		rows, err = r.db.Query(baseQuery, startDate, endDate, limit, offset)
+		query += " WHERE p.registration_date >= $1 AND p.registration_date <= $2"
+		query += " ORDER BY p.registration_date"
+		query += " LIMIT $3 OFFSET $4"
+		rows, err = r.db.Query(query, startDate, endDate, limit, offset)
 	} else {
-		baseQuery += " ORDER BY p.registration_date"
-		baseQuery += " LIMIT $1 OFFSET $2"
-		rows, err = r.db.Query(baseQuery, limit, offset)
+		query += " ORDER BY p.registration_date"
+		query += " LIMIT $1 OFFSET $2"
+		rows, err = r.db.Query(query, limit, offset)
 	}
 
 	if err != nil {
@@ -77,9 +77,13 @@ func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limi
 	}
 	defer rows.Close()
 
-	pvzMap := make(map[string]*PVZWithRelations)
-	receptionMap := make(map[string]*models.Reception)
-	productMap := make(map[string][]models.Product)
+	type tempReception struct {
+		reception models.Reception
+		products  []models.Product
+	}
+
+	pvzMap := make(map[string]*PVZResponse)
+	receptionMap := make(map[string]*tempReception)
 
 	for rows.Next() {
 		var (
@@ -95,74 +99,68 @@ func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limi
 			productReceptionID            sql.NullString
 		)
 
-		err = rows.Scan(
+		if err := rows.Scan(
 			&pvzID, &pvzRegDate, &pvzCity,
 			&receptionID, &receptionCreatedAt, &receptionPvzID, &receptionStatus, &receptionClosedAt,
 			&productID, &productCreatedAt, &productType, &productReceptionID,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
 
-		// Обработка PVZ
 		if pvzID.Valid {
 			if _, exists := pvzMap[pvzID.String]; !exists {
-				pvzMap[pvzID.String] = &PVZWithRelations{
+				pvzMap[pvzID.String] = &PVZResponse{
 					PVZ: models.PVZ{
 						ID:               pvzID.String,
 						RegistrationDate: pvzRegDate.Time,
 						City:             pvzCity.String,
 					},
-					Receptions: []ReceptionWithProducts{},
+					Receptions: []ReceptionResponse{},
 				}
 			}
 		}
 
-		// Обработка Reception
-		if receptionID.Valid {
+		if receptionID.Valid && pvzID.Valid {
 			if _, exists := receptionMap[receptionID.String]; !exists {
-				reception := models.Reception{
-					ID:       receptionID.String,
-					DateTime: receptionCreatedAt.Time,
-					PvzId:    receptionPvzID.String,
-					Status:   receptionStatus.String,
-					ClosedAt: utils.NullableTime(receptionClosedAt),
+				receptionMap[receptionID.String] = &tempReception{
+					reception: models.Reception{
+						ID:       receptionID.String,
+						DateTime: receptionCreatedAt.Time,
+						PvzId:    receptionPvzID.String,
+						Status:   receptionStatus.String,
+						ClosedAt: utils.NullableTime(receptionClosedAt),
+					},
+					products: []models.Product{},
 				}
-				receptionMap[receptionID.String] = &reception
 			}
 		}
 
-		// Обработка Product
 		if productID.Valid && productReceptionID.Valid {
-			product := models.Product{
-				ID:          productID.String,
-				DateTime:    productCreatedAt.Time,
-				Type:        productType.String,
-				ReceptionId: productReceptionID.String,
+			if reception, exists := receptionMap[productReceptionID.String]; exists {
+				reception.products = append(reception.products, models.Product{
+					ID:          productID.String,
+					DateTime:    productCreatedAt.Time,
+					Type:        productType.String,
+					ReceptionId: productReceptionID.String,
+				})
 			}
-			productMap[productReceptionID.String] = append(productMap[productReceptionID.String], product)
 		}
 	}
 
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	// Собираем окончательную структуру
-	for _, pvz := range pvzMap {
-		for receptionID, reception := range receptionMap {
-			if reception.PvzId == pvz.PVZ.ID {
-				receptionWithProducts := ReceptionWithProducts{
-					Reception: *reception,
-					Products:  productMap[receptionID],
-				}
-				pvz.Receptions = append(pvz.Receptions, receptionWithProducts)
-			}
+	for _, reception := range receptionMap {
+		if pvz, exists := pvzMap[reception.reception.PvzId]; exists {
+			pvz.Receptions = append(pvz.Receptions, ReceptionResponse{
+				Reception: reception.reception,
+				Products:  reception.products,
+			})
 		}
 	}
 
-	// Преобразуем map в slice
-	result := make([]PVZWithRelations, 0, len(pvzMap))
+	result := make([]PVZResponse, 0, len(pvzMap))
 	for _, pvz := range pvzMap {
 		result = append(result, *pvz)
 	}

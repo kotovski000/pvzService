@@ -55,25 +55,6 @@ func (h *PVZHandlers) GetPVZListHandler() fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: err.Error()})
 		}
 
-		// Преобразуем в формат, аналогичный оригинальному обработчику
-		var response []map[string]interface{}
-		for _, pvzWithRelations := range result {
-			item := map[string]interface{}{
-				"pvz": pvzWithRelations.PVZ,
-			}
-
-			var receptionsList []map[string]interface{}
-			for _, reception := range pvzWithRelations.Receptions {
-				receptionsList = append(receptionsList, map[string]interface{}{
-					"reception": reception.Reception,
-					"products":  reception.Products,
-				})
-			}
-
-			item["receptions"] = receptionsList
-			response = append(response, item)
-		}
-
-		return c.JSON(response)
+		return c.JSON(result)
 	}
 }

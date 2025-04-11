@@ -30,7 +30,7 @@ func (p *PVZProcessor) CreatePVZ(city string) (models.PVZ, error) {
 	return p.pvzRepo.CreatePVZ(city)
 }
 
-func (p *PVZProcessor) ListPVZsWithRelations(startDate, endDate string, page, limit int) ([]repository.PVZWithRelations, error) {
+func (p *PVZProcessor) ListPVZsWithRelations(startDate, endDate string, page, limit int) ([]repository.PVZResponse, error) {
 	var start, end time.Time
 	var err error
 
