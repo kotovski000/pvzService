@@ -1,11 +1,11 @@
 package handlers
 
 import (
+	"pvzService/internal/prometheus"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
-	"pvzService/internal/middleware"
 	"pvzService/internal/models"
 	"pvzService/internal/processors"
 )
@@ -30,7 +30,7 @@ func (h *PVZHandlers) CreatePVZHandler() fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: err.Error()})
 		}
 
-		middleware.PickupPointsCreated.Inc()
+		prometheus.PickupPointsCreated.Inc()
 
 		return c.Status(fiber.StatusCreated).JSON(pvz)
 

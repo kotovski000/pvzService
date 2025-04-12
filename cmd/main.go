@@ -13,6 +13,7 @@ import (
 	"pvzService/internal/handlers"
 	"pvzService/internal/middleware"
 	"pvzService/internal/processors"
+	"pvzService/internal/prometheus"
 	"pvzService/internal/repository"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -63,7 +64,6 @@ func main() {
 
 	app := fiber.New()
 
-	// Запускаем сервер метрик
 	startMetricsServer()
 
 	app.Use(cors.New())
@@ -71,7 +71,7 @@ func main() {
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",
 		TimeFormat: "2006-01-02 15:04:05",
 	}))
-	app.Use(middleware.PrometheusMiddleware()) // Добавляем Prometheus middleware
+	app.Use(prometheus.PrometheusMiddleware())
 
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.SendString("OK")
