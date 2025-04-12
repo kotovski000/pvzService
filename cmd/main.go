@@ -8,7 +8,6 @@ import (
 	"github.com/joho/godotenv"
 	"log"
 	"net/http"
-
 	"pvzService/internal/config"
 	"pvzService/internal/db"
 	"pvzService/internal/handlers"
@@ -68,7 +67,10 @@ func main() {
 	startMetricsServer()
 
 	app.Use(cors.New())
-	app.Use(logger.New())
+	app.Use(logger.New(logger.Config{
+		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",
+		TimeFormat: "2006-01-02 15:04:05",
+	}))
 	app.Use(middleware.PrometheusMiddleware()) // Добавляем Prometheus middleware
 
 	app.Get("/health", func(c *fiber.Ctx) error {
