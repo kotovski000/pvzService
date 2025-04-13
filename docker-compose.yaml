@@ -4,7 +4,8 @@ services:
     container_name: pvz-shop-service
     ports:
       - "8080:8080"
-      - "9000:9000"  # Добавляем порт для метрик Prometheus
+      - "9000:9000"
+      - "3000:3000"
     environment:
       # енвы подключения к БД
       - DATABASE_PORT=${DATABASE_PORT}
