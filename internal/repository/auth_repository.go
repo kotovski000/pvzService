@@ -7,15 +7,21 @@ import (
 	"github.com/lib/pq"
 )
 
-type AuthRepository struct {
+type AuthRepository interface {
+	CreateUser(email, hashedPassword, role string) (string, error)
+	FindUserByEmail(email string) (string, string, string, error)
+	FindUserByRole(role string) (string, error)
+}
+
+type AuthRepositoryImpl struct {
 	db *sql.DB
 }
 
-func NewAuthRepository(db *sql.DB) *AuthRepository {
-	return &AuthRepository{db: db}
+func NewAuthRepository(db *sql.DB) AuthRepository {
+	return &AuthRepositoryImpl{db: db}
 }
 
-func (r *AuthRepository) CreateUser(email, hashedPassword, role string) (string, error) {
+func (r *AuthRepositoryImpl) CreateUser(email, hashedPassword, role string) (string, error) {
 	userID := uuid.New().String()
 	_, err := r.db.Exec(
 		"INSERT INTO users (id, email, password, role) VALUES ($1, $2, $3, $4)",
@@ -30,7 +36,7 @@ func (r *AuthRepository) CreateUser(email, hashedPassword, role string) (string,
 	return userID, nil
 }
 
-func (r *AuthRepository) FindUserByEmail(email string) (string, string, string, error) {
+func (r *AuthRepositoryImpl) FindUserByEmail(email string) (string, string, string, error) {
 	var userID, hashedPassword, role string
 	err := r.db.QueryRow(
 		"SELECT id, password, role FROM users WHERE email = $1",
@@ -39,7 +45,7 @@ func (r *AuthRepository) FindUserByEmail(email string) (string, string, string, 
 	return userID, hashedPassword, role, err
 }
 
-func (r *AuthRepository) FindUserByRole(role string) (string, error) {
+func (r *AuthRepositoryImpl) FindUserByRole(role string) (string, error) {
 	var userID string
 	err := r.db.QueryRow("SELECT id FROM users WHERE role = $1 LIMIT 1", role).Scan(&userID)
 	return userID, err

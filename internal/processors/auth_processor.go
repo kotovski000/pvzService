@@ -8,24 +8,32 @@ import (
 	"pvzService/internal/repository"
 )
 
-type AuthProcessor struct {
-	authRepo *repository.AuthRepository
+type AuthProcessor interface {
+	Register(email, password, role string) (string, error)
+	Login(email, password string) (string, string, error)
+	DummyLogin(role string) (string, error)
+	HashPassword(password string) (string, error)
+	ComparePassword(hashedPassword, password string) error
 }
 
-func NewAuthProcessor(authRepo *repository.AuthRepository) *AuthProcessor {
-	return &AuthProcessor{authRepo: authRepo}
+type AuthProcessorImpl struct {
+	authRepo repository.AuthRepository
 }
 
-func (p *AuthProcessor) HashPassword(password string) (string, error) {
+func NewAuthProcessor(authRepo repository.AuthRepository) AuthProcessor {
+	return &AuthProcessorImpl{authRepo: authRepo}
+}
+
+func (p *AuthProcessorImpl) HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
 }
 
-func (p *AuthProcessor) ComparePassword(hashedPassword, password string) error {
+func (p *AuthProcessorImpl) ComparePassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-func (p *AuthProcessor) Register(email, password, role string) (string, error) {
+func (p *AuthProcessorImpl) Register(email, password, role string) (string, error) {
 	if role != "employee" && role != "moderator" {
 		return "", errors.New("invalid role")
 	}
@@ -38,7 +46,7 @@ func (p *AuthProcessor) Register(email, password, role string) (string, error) {
 	return p.authRepo.CreateUser(email, hashedPassword, role)
 }
 
-func (p *AuthProcessor) Login(email, password string) (string, string, error) {
+func (p *AuthProcessorImpl) Login(email, password string) (string, string, error) {
 	userID, hashedPassword, role, err := p.authRepo.FindUserByEmail(email)
 	if err != nil {
 		return "", "", errors.New("invalid email or password")
@@ -51,7 +59,7 @@ func (p *AuthProcessor) Login(email, password string) (string, string, error) {
 	return userID, role, nil
 }
 
-func (p *AuthProcessor) DummyLogin(role string) (string, error) {
+func (p *AuthProcessorImpl) DummyLogin(role string) (string, error) {
 	if role != "employee" && role != "moderator" {
 		return "", errors.New("invalid role")
 	}

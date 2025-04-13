@@ -10,11 +10,11 @@ import (
 )
 
 type AuthHandlers struct {
-	authProcessor *processors.AuthProcessor
+	authProcessor processors.AuthProcessor
 	secret        string
 }
 
-func NewAuthHandlers(authProcessor *processors.AuthProcessor, secret string) *AuthHandlers {
+func NewAuthHandlers(authProcessor processors.AuthProcessor, secret string) *AuthHandlers {
 	return &AuthHandlers{
 		authProcessor: authProcessor,
 		secret:        secret,
