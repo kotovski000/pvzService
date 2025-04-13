@@ -13,7 +13,6 @@ func InitializeDB(dsn string) (*sql.DB, error) {
 }
 
 func InitializeTestDB(dsn string) (*sql.DB, error) {
-	// Можно использовать другую стратегию для тестов
 	return initializeWithRetry(dsn, 3, 1*time.Second)
 }
 
@@ -26,11 +25,7 @@ func initializeWithRetry(dsn string, maxRetries int, delay time.Duration) (*sql.
 		if err == nil {
 			err = db.Ping()
 			if err == nil {
-				// Дополнительные настройки для тестовой БД
-				if maxRetries == 3 { // Это тестовая инициализация
-					db.SetMaxOpenConns(5)
-					db.SetMaxIdleConns(2)
-				}
+
 				return db, nil
 			}
 		}

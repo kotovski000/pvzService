@@ -18,17 +18,15 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"pvzService/cmd/app"
+	"pvzService/internal/config"
 	"pvzService/internal/db"
-	"pvzService/internal/handlers"
 	"pvzService/internal/models"
-	"pvzService/internal/processors"
-	"pvzService/internal/repository"
 )
 
 func TestFullPVZWorkflowWithRoles(t *testing.T) {
 	t.Log("=== Начало комплексного теста рабочего процесса ПВЗ ===")
 
-	// Настройка тестовой БД
 	ctx := context.Background()
 	t.Log("Инициализация тестовой БД PostgreSQL с использованием Testcontainers...")
 	postgresContainer, dsn := setupTestDB(ctx, t)
@@ -47,51 +45,42 @@ func TestFullPVZWorkflowWithRoles(t *testing.T) {
 	t.Log("Применение миграций...")
 	applyMigrations(t, testDB)
 
-	// Инициализация слоев приложения
-	t.Log("Инициализация репозиториев и процессоров...")
-	pvzRepo := repository.NewPVZRepository(testDB)
-	receptionRepo := repository.NewReceptionRepository(testDB)
-	productRepo := repository.NewProductRepository(testDB)
+	// Создаем тестовую конфигурацию
+	testCfg := config.Config{
+		JWTSecret: "test-secret",
+	}
 
-	pvzProcessor := processors.NewPVZProcessor(pvzRepo)
-	receptionProcessor := processors.NewReceptionProcessor(receptionRepo)
-	productProcessor := processors.NewProductProcessor(productRepo, receptionRepo)
-
-	pvzHandlers := handlers.NewPVZHandlers(pvzProcessor)
-	receptionHandlers := handlers.NewReceptionHandlers(receptionProcessor)
-	productHandlers := handlers.NewProductHandlers(productProcessor)
-
-	// Создаем Fiber приложение с middleware
-	t.Log("Создание Fiber приложения с middleware проверки ролей...")
-	app := fiber.New()
-	setupRoutesWithRoles(app, pvzHandlers, receptionHandlers, productHandlers)
+	// Создаем приложение в тестовом режиме
+	testApp := app.MakeApp(testDB, testCfg, true)
+	setupTestRoles(testApp)
 
 	// 1. Создание нового ПВЗ
-	t.Log("Тест 1: Создание ПВЗ с ролью moderator...")
-	pvzID := createPVZAsModerator(t, app)
+	pvzID := createPVZAsModerator(t, testApp)
 	assert.NotEmpty(t, pvzID)
-	t.Logf("Успешно создан ПВЗ с ID: %s", pvzID)
 
 	// 2. Добавление приёмки
-	t.Log("Тест 2: Создание приёмки с ролью employee...")
-	receptionID := createReceptionAsEmployee(t, app, pvzID)
+	receptionID := createReceptionAsEmployee(t, testApp, pvzID)
 	assert.NotEmpty(t, receptionID)
-	t.Logf("Успешно создана приёмка с ID: %s", receptionID)
 
 	// 3. Добавление товаров
-	t.Logf("Тест 3: Добавление %d товаров с ролью employee...", 50)
-	productIDs := addProductsAsEmployee(t, app, pvzID, 50)
+	productIDs := addProductsAsEmployee(t, testApp, pvzID, 50)
 	assert.Len(t, productIDs, 50)
-	t.Logf("Успешно добавлено %d товаров", len(productIDs))
 
 	// 4. Закрытие приёмки
-	t.Log("Тест 4: Закрытие приёмки с ролью employee...")
-	closedReception := closeReceptionAsEmployee(t, app, pvzID)
+	closedReception := closeReceptionAsEmployee(t, testApp, pvzID)
 	assert.Equal(t, "close", closedReception.Status)
 	assert.NotNil(t, closedReception.ClosedAt)
-	t.Logf("Приёмка успешно закрыта: %s", closedReception.ClosedAt.Format(time.RFC3339))
+}
 
-	t.Log("=== Комплексный тест завершен успешно ===")
+func setupTestRoles(app *fiber.App) {
+	app.Use(func(c *fiber.Ctx) error {
+		claims := jwt.MapClaims{
+			"userId": "test-user",
+			"role":   "moderator",
+		}
+		c.Locals("user", claims)
+		return c.Next()
+	})
 }
 
 func setupTestDB(ctx context.Context, t *testing.T) (testcontainers.Container, string) {
@@ -168,50 +157,6 @@ func applyMigrations(t *testing.T, db *sql.DB) {
 	`)
 	assert.NoError(t, err)
 	t.Log("Миграции успешно применены")
-}
-
-func setupRoutesWithRoles(app *fiber.App,
-	pvzHandlers *handlers.PVZHandlers,
-	receptionHandlers *handlers.ReceptionHandlers,
-	productHandlers *handlers.ProductHandlers) {
-
-	// Middleware для разных ролей
-	moderatorOnly := func(c *fiber.Ctx) error {
-		user := c.Locals("user").(jwt.MapClaims)
-		if user["role"] != "moderator" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "moderator role required",
-			})
-		}
-		return c.Next()
-	}
-
-	employeeOnly := func(c *fiber.Ctx) error {
-		user := c.Locals("user").(jwt.MapClaims)
-		if user["role"] != "employee" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "employee role required",
-			})
-		}
-		return c.Next()
-	}
-
-	// Роуты с проверкой ролей
-	app.Post("/pvz", setTestRole("moderator"), moderatorOnly, pvzHandlers.CreatePVZHandler())
-	app.Post("/receptions", setTestRole("employee"), employeeOnly, receptionHandlers.CreateReceptionHandler())
-	app.Post("/products", setTestRole("employee"), employeeOnly, productHandlers.AddProductHandler())
-	app.Post("/pvz/:pvzId/close_last_reception", setTestRole("employee"), employeeOnly, receptionHandlers.CloseLastReceptionHandler())
-}
-
-func setTestRole(role string) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		claims := jwt.MapClaims{
-			"userId": "test-user",
-			"role":   role,
-		}
-		c.Locals("user", claims)
-		return c.Next()
-	}
 }
 
 func createPVZAsModerator(t *testing.T, app *fiber.App) string {

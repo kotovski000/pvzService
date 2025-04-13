@@ -1,7 +1,7 @@
 FROM golang:1.23.0
 
-WORKDIR ${GOPATH}/pvz-shop/
-COPY . ${GOPATH}/pvz-shop/
+WORKDIR ${GOPATH}/pvz-service/
+COPY . ${GOPATH}/pvz-service/
 
 RUN go mod download
 
