@@ -48,10 +48,10 @@ func main() {
 
 	startGRPCServerAsync(database, "3000")
 
-	app := app.MakeApp(database, cfg, false)
+	application := app.MakeApp(database, cfg)
 
 	startMetricsServer()
 
 	log.Printf("Server listening on port %s", cfg.Port)
-	log.Fatal(app.Listen(fmt.Sprintf("0.0.0.0:%s", cfg.Port)))
+	log.Fatal(application.Listen(fmt.Sprintf("0.0.0.0:%s", cfg.Port)))
 }

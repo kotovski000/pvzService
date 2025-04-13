@@ -130,7 +130,6 @@ func TestPVZRepository_ListPVZsWithRelations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, result, 2)
 
-		// Проверяем порядок элементов (сортировка по registration_date)
 		assert.Equal(t, "Москва", result[0].PVZ.City)
 		assert.Len(t, result[0].Receptions, 1)
 		assert.Len(t, result[0].Receptions[0].Products, 2)

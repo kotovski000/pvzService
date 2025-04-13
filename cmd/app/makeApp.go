@@ -13,7 +13,7 @@ import (
 	"pvzService/internal/repository"
 )
 
-func MakeApp(database *sql.DB, cfg config.Config, testMode bool) *fiber.App {
+func MakeApp(database *sql.DB, cfg config.Config) *fiber.App {
 	// Initialize repositories
 	authRepo := repository.NewAuthRepository(database)
 	pvzRepo := repository.NewPVZRepository(database)
@@ -40,10 +40,7 @@ func MakeApp(database *sql.DB, cfg config.Config, testMode bool) *fiber.App {
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",
 		TimeFormat: "2006-01-02 15:04:05",
 	}))
-
-	if !testMode {
-		app.Use(prometheus.PrometheusMiddleware())
-	}
+	app.Use(prometheus.PrometheusMiddleware())
 
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
@@ -57,28 +54,15 @@ func MakeApp(database *sql.DB, cfg config.Config, testMode bool) *fiber.App {
 
 	// Protected Routes
 	api := app.Group("/")
-	if !testMode {
-		api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
-	}
+	api.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 
-	// Routes configuration
-	if testMode {
-		// Test mode routes - without role checks
-		api.Post("/pvz", pvzHandlers.CreatePVZHandler())
-		api.Get("/pvz", pvzHandlers.GetPVZListHandler())
-		api.Post("/receptions", receptionHandlers.CreateReceptionHandler())
-		api.Post("/products", productHandlers.AddProductHandler())
-		api.Post("/pvz/:pvzId/close_last_reception", receptionHandlers.CloseLastReceptionHandler())
-		api.Post("/pvz/:pvzId/delete_last_product", productHandlers.DeleteLastProductHandler())
-	} else {
-		// Production mode routes - with role checks
-		api.Post("/pvz", middleware.CheckRole("moderator"), pvzHandlers.CreatePVZHandler())
-		api.Get("/pvz", middleware.CheckRole("employee", "moderator"), pvzHandlers.GetPVZListHandler())
-		api.Post("/receptions", middleware.CheckRole("employee"), receptionHandlers.CreateReceptionHandler())
-		api.Post("/products", middleware.CheckRole("employee"), productHandlers.AddProductHandler())
-		api.Post("/pvz/:pvzId/close_last_reception", middleware.CheckRole("employee"), receptionHandlers.CloseLastReceptionHandler())
-		api.Post("/pvz/:pvzId/delete_last_product", middleware.CheckRole("employee"), productHandlers.DeleteLastProductHandler())
-	}
+	// Routes configuration with role checks
+	api.Post("/pvz", middleware.CheckRole("moderator"), pvzHandlers.CreatePVZHandler())
+	api.Get("/pvz", middleware.CheckRole("employee", "moderator"), pvzHandlers.GetPVZListHandler())
+	api.Post("/receptions", middleware.CheckRole("employee"), receptionHandlers.CreateReceptionHandler())
+	api.Post("/products", middleware.CheckRole("employee"), productHandlers.AddProductHandler())
+	api.Post("/pvz/:pvzId/close_last_reception", middleware.CheckRole("employee"), receptionHandlers.CloseLastReceptionHandler())
+	api.Post("/pvz/:pvzId/delete_last_product", middleware.CheckRole("employee"), productHandlers.DeleteLastProductHandler())
 
 	return app
 }
