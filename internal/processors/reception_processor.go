@@ -3,21 +3,27 @@ package processors
 import (
 	"database/sql"
 	"errors"
+	"github.com/google/uuid"
 	"time"
 
 	"pvzService/internal/models"
 	"pvzService/internal/repository"
 )
 
-type ReceptionProcessor struct {
-	receptionRepo *repository.ReceptionRepository
+type ReceptionProcessor interface {
+	CreateReception(pvzID string) (models.Reception, error)
+	CloseLastReception(pvzID string) (models.Reception, error)
 }
 
-func NewReceptionProcessor(receptionRepo *repository.ReceptionRepository) *ReceptionProcessor {
-	return &ReceptionProcessor{receptionRepo: receptionRepo}
+type ReceptionProcessorImpl struct {
+	receptionRepo repository.ReceptionRepository
 }
 
-func (p *ReceptionProcessor) CreateReception(pvzID string) (models.Reception, error) {
+func NewReceptionProcessor(receptionRepo repository.ReceptionRepository) *ReceptionProcessorImpl {
+	return &ReceptionProcessorImpl{receptionRepo: receptionRepo}
+}
+
+func (p *ReceptionProcessorImpl) CreateReception(pvzID string) (models.Reception, error) {
 	hasOpen, err := p.receptionRepo.HasOpenReception(pvzID)
 	if err != nil {
 		return models.Reception{}, errors.New("database error")
@@ -26,7 +32,7 @@ func (p *ReceptionProcessor) CreateReception(pvzID string) (models.Reception, er
 		return models.Reception{}, errors.New("open reception already exists for this PVZ")
 	}
 
-	receptionID, err := p.receptionRepo.CreateReception(pvzID)
+	receptionID, err := p.receptionRepo.CreateReception(pvzID, uuid.New)
 	if err != nil {
 		return models.Reception{}, errors.New("failed to create reception")
 	}
@@ -34,7 +40,7 @@ func (p *ReceptionProcessor) CreateReception(pvzID string) (models.Reception, er
 	return p.receptionRepo.GetReceptionByID(receptionID)
 }
 
-func (p *ReceptionProcessor) CloseLastReception(pvzID string) (models.Reception, error) {
+func (p *ReceptionProcessorImpl) CloseLastReception(pvzID string) (models.Reception, error) {
 	reception, err := p.receptionRepo.GetOpenReception(pvzID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

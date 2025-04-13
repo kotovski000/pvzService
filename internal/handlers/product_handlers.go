@@ -6,15 +6,25 @@ import (
 	"pvzService/internal/prometheus"
 
 	"pvzService/internal/models"
-	"pvzService/internal/processors"
 )
 
-type ProductHandlers struct {
-	productProcessor *processors.ProductProcessor
+type ProductProcessor interface {
+	AddProduct(pvzID, productType string) (models.Product, error)
+	DeleteLastProduct(pvzID string) error
 }
 
-func NewProductHandlers(productProcessor *processors.ProductProcessor) *ProductHandlers {
+type ProductHandlers struct {
+	productProcessor ProductProcessor
+}
+
+func NewProductHandlers(productProcessor ProductProcessor) *ProductHandlers {
 	return &ProductHandlers{productProcessor: productProcessor}
+}
+
+var allowedProductTypes = map[string]bool{
+	"электроника": true,
+	"одежда":      true,
+	"обувь":       true,
 }
 
 func (h *ProductHandlers) AddProductHandler() fiber.Handler {
@@ -23,12 +33,17 @@ func (h *ProductHandlers) AddProductHandler() fiber.Handler {
 			Type  string `json:"type"`
 			PvzId string `json:"pvzId"`
 		}
+
 		if err := c.BodyParser(&body); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid request"})
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid request body"})
 		}
 
 		if _, err := uuid.Parse(body.PvzId); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid pvzId format"})
+		}
+
+		if !allowedProductTypes[body.Type] {
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid product type"})
 		}
 
 		product, err := h.productProcessor.AddProduct(body.PvzId, body.Type)

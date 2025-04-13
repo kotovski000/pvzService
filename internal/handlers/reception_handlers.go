@@ -10,10 +10,10 @@ import (
 )
 
 type ReceptionHandlers struct {
-	receptionProcessor *processors.ReceptionProcessor
+	receptionProcessor processors.ReceptionProcessor
 }
 
-func NewReceptionHandlers(receptionProcessor *processors.ReceptionProcessor) *ReceptionHandlers {
+func NewReceptionHandlers(receptionProcessor processors.ReceptionProcessor) *ReceptionHandlers {
 	return &ReceptionHandlers{receptionProcessor: receptionProcessor}
 }
 

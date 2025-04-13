@@ -9,16 +9,22 @@ import (
 	"pvzService/internal/utils"
 )
 
-type PVZRepository struct {
+type PVZRepository interface {
+	CreatePVZ(city string, idGenerator func() uuid.UUID) (models.PVZ, error)
+	GetPVZByID(id string) (models.PVZ, error)
+	ListPVZsWithRelations(startDate, endDate time.Time, limit, offset int) ([]PVZResponse, error)
+}
+
+type PVZRepositoryImpl struct {
 	db *sql.DB
 }
 
-func NewPVZRepository(db *sql.DB) *PVZRepository {
-	return &PVZRepository{db: db}
+func NewPVZRepository(db *sql.DB) *PVZRepositoryImpl {
+	return &PVZRepositoryImpl{db: db}
 }
 
-func (r *PVZRepository) CreatePVZ(city string) (models.PVZ, error) {
-	pvzID := uuid.New().String()
+func (r *PVZRepositoryImpl) CreatePVZ(city string, idGenerator func() uuid.UUID) (models.PVZ, error) {
+	pvzID := idGenerator().String()
 	_, err := r.db.Exec("INSERT INTO pvz (id, city) VALUES ($1, $2)", pvzID, city)
 	if err != nil {
 		return models.PVZ{}, err
@@ -30,7 +36,7 @@ func (r *PVZRepository) CreatePVZ(city string) (models.PVZ, error) {
 	return pvz, err
 }
 
-func (r *PVZRepository) GetPVZByID(id string) (models.PVZ, error) {
+func (r *PVZRepositoryImpl) GetPVZByID(id string) (models.PVZ, error) {
 	var pvz models.PVZ
 	err := r.db.QueryRow("SELECT id, registration_date, city FROM pvz WHERE id = $1", id).
 		Scan(&pvz.ID, &pvz.RegistrationDate, &pvz.City)
@@ -47,7 +53,7 @@ type ReceptionResponse struct {
 	Products  []models.Product `json:"products"`
 }
 
-func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limit, offset int) ([]PVZResponse, error) {
+func (r *PVZRepositoryImpl) ListPVZsWithRelations(startDate, endDate time.Time, limit, offset int) ([]PVZResponse, error) {
 	var rows *sql.Rows
 	var err error
 
@@ -77,13 +83,11 @@ func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limi
 	}
 	defer rows.Close()
 
-	type tempReception struct {
+	pvzMap := make(map[string]*PVZResponse)
+	receptionMap := make(map[string]*struct {
 		reception models.Reception
 		products  []models.Product
-	}
-
-	pvzMap := make(map[string]*PVZResponse)
-	receptionMap := make(map[string]*tempReception)
+	})
 
 	for rows.Next() {
 		var (
@@ -121,8 +125,12 @@ func (r *PVZRepository) ListPVZsWithRelations(startDate, endDate time.Time, limi
 		}
 
 		if receptionID.Valid && pvzID.Valid {
-			if _, exists := receptionMap[receptionID.String]; !exists {
-				receptionMap[receptionID.String] = &tempReception{
+			receptionKey := receptionID.String
+			if _, exists := receptionMap[receptionKey]; !exists {
+				receptionMap[receptionKey] = &struct {
+					reception models.Reception
+					products  []models.Product
+				}{
 					reception: models.Reception{
 						ID:       receptionID.String,
 						DateTime: receptionCreatedAt.Time,

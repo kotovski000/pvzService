@@ -4,19 +4,26 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
 	"pvzService/internal/models"
 	"pvzService/internal/repository"
 )
 
-type PVZProcessor struct {
-	pvzRepo *repository.PVZRepository
+type PVZProcessor interface {
+	CreatePVZ(city string) (models.PVZ, error)
+	GetPVZByID(id string) (models.PVZ, error)
+	ListPVZsWithRelations(startDate, endDate string, page, limit int) ([]repository.PVZResponse, error)
 }
 
-func NewPVZProcessor(pvzRepo *repository.PVZRepository) *PVZProcessor {
-	return &PVZProcessor{pvzRepo: pvzRepo}
+type PVZProcessorImpl struct {
+	pvzRepo repository.PVZRepository
 }
 
-func (p *PVZProcessor) CreatePVZ(city string) (models.PVZ, error) {
+func NewPVZProcessor(pvzRepo repository.PVZRepository) *PVZProcessorImpl {
+	return &PVZProcessorImpl{pvzRepo: pvzRepo}
+}
+
+func (p *PVZProcessorImpl) CreatePVZ(city string) (models.PVZ, error) {
 	allowedCities := map[string]bool{
 		"Москва":          true,
 		"Санкт-Петербург": true,
@@ -27,10 +34,14 @@ func (p *PVZProcessor) CreatePVZ(city string) (models.PVZ, error) {
 		return models.PVZ{}, errors.New("invalid city")
 	}
 
-	return p.pvzRepo.CreatePVZ(city)
+	return p.pvzRepo.CreatePVZ(city, uuid.New)
 }
 
-func (p *PVZProcessor) ListPVZsWithRelations(startDate, endDate string, page, limit int) ([]repository.PVZResponse, error) {
+func (p *PVZProcessorImpl) GetPVZByID(id string) (models.PVZ, error) {
+	return p.pvzRepo.GetPVZByID(id)
+}
+
+func (p *PVZProcessorImpl) ListPVZsWithRelations(startDate, endDate string, page, limit int) ([]repository.PVZResponse, error) {
 	var start, end time.Time
 	var err error
 

@@ -3,19 +3,30 @@ package processors
 import (
 	"database/sql"
 	"errors"
+	"github.com/google/uuid"
 
 	"pvzService/internal/models"
-	"pvzService/internal/repository"
 )
 
+type ProductRepository interface {
+	AddProduct(receptionID string, productType string, idGenerator func() uuid.UUID) (string, error)
+	GetProductByID(id string) (models.Product, error)
+	GetLastProduct(receptionID string) (models.Product, error)
+	DeleteProduct(id string) error
+}
+
+type ReceptionRepository interface {
+	GetOpenReception(pvzID string) (models.Reception, error)
+}
+
 type ProductProcessor struct {
-	productRepo   *repository.ProductRepository
-	receptionRepo *repository.ReceptionRepository
+	productRepo   ProductRepository
+	receptionRepo ReceptionRepository
 }
 
 func NewProductProcessor(
-	productRepo *repository.ProductRepository,
-	receptionRepo *repository.ReceptionRepository,
+	productRepo ProductRepository,
+	receptionRepo ReceptionRepository,
 ) *ProductProcessor {
 	return &ProductProcessor{
 		productRepo:   productRepo,
@@ -42,7 +53,7 @@ func (p *ProductProcessor) AddProduct(pvzID, productType string) (models.Product
 		return models.Product{}, errors.New("database error")
 	}
 
-	productID, err := p.productRepo.AddProduct(reception.ID, productType)
+	productID, err := p.productRepo.AddProduct(reception.ID, productType, uuid.New)
 	if err != nil {
 		return models.Product{}, errors.New("failed to add product")
 	}

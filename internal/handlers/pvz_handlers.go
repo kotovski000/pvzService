@@ -3,6 +3,7 @@ package handlers
 import (
 	"pvzService/internal/prometheus"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -11,10 +12,10 @@ import (
 )
 
 type PVZHandlers struct {
-	pvzProcessor *processors.PVZProcessor
+	pvzProcessor processors.PVZProcessor
 }
 
-func NewPVZHandlers(pvzProcessor *processors.PVZProcessor) *PVZHandlers {
+func NewPVZHandlers(pvzProcessor processors.PVZProcessor) *PVZHandlers {
 	return &PVZHandlers{pvzProcessor: pvzProcessor}
 }
 
@@ -39,24 +40,57 @@ func (h *PVZHandlers) CreatePVZHandler() fiber.Handler {
 
 func (h *PVZHandlers) GetPVZListHandler() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		startDate := c.Query("startDate")
-		endDate := c.Query("endDate")
-		pageStr := c.Query("page", "1")
-		limitStr := c.Query("limit", "10")
+		pageStr := c.Query("page")
+		if pageStr == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{
+				Message: "page parameter is required",
+			})
+		}
+
+		limitStr := c.Query("limit")
+		if limitStr == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{
+				Message: "limit parameter is required",
+			})
+		}
 
 		page, err := strconv.Atoi(pageStr)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid page number"})
+		if err != nil || page < 1 {
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{
+				Message: "page must be a positive integer",
+			})
 		}
 
 		limit, err := strconv.Atoi(limitStr)
-		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: "Invalid limit"})
+		if err != nil || limit < 1 || limit > 30 {
+			return c.Status(fiber.StatusBadRequest).JSON(models.Error{
+				Message: "limit must be between 1 and 30",
+			})
+		}
+
+		startDate := c.Query("startDate")
+		if startDate != "" {
+			if _, err := time.Parse(time.RFC3339, startDate); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(models.Error{
+					Message: "invalid startDate format, must be RFC3339",
+				})
+			}
+		}
+
+		endDate := c.Query("endDate")
+		if endDate != "" {
+			if _, err := time.Parse(time.RFC3339, endDate); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(models.Error{
+					Message: "invalid endDate format, must be RFC3339",
+				})
+			}
 		}
 
 		result, err := h.pvzProcessor.ListPVZsWithRelations(startDate, endDate, page, limit)
 		if err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(models.Error{Message: err.Error()})
+			return c.Status(fiber.StatusInternalServerError).JSON(models.Error{
+				Message: err.Error(),
+			})
 		}
 
 		return c.JSON(result)
