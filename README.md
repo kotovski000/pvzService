@@ -1,11 +1,12 @@
 # Управление ПВЗ (Пункты Выдачи Заказов)
 
-## Установка
+## Установка и запуск
 
 ```
 git clone https://github.com/ваш-репозиторий/pvzService.git
 cd pvzService
 go mod tidy
+sudo docker compose up
 ```
 
 ## Настройка
