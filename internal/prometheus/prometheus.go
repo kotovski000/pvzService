@@ -11,10 +11,8 @@ func PrometheusMiddleware() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
 
-		// Выполняем следующий обработчик
 		err := c.Next()
 
-		// После выполнения запроса собираем метрики
 		duration := time.Since(start).Seconds()
 		status := strconv.Itoa(c.Response().StatusCode())
 		path := c.Path()

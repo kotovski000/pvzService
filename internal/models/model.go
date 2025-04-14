@@ -1,7 +1,6 @@
 package models
 
 import (
-	"github.com/golang-jwt/jwt/v5"
 	"time"
 )
 
@@ -39,10 +38,4 @@ type Product struct {
 
 type Error struct {
 	Message string `json:"message"`
-}
-
-type Claims struct {
-	UserID string `json:"userId"`
-	Role   string `json:"role"`
-	jwt.RegisteredClaims
 }

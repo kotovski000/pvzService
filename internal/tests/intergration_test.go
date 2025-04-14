@@ -42,12 +42,10 @@ func TestFullPVZWorkflowWithRoles(t *testing.T) {
 	t.Log("Применение миграций...")
 	applyMigrations(t, testDB)
 
-	// Создаем тестовую конфигурацию
 	testCfg := config.Config{
 		JWTSecret: "test-secret",
 	}
 
-	// Создаем приложение без тестового режима (с полной аутентификацией)
 	testApp := app.MakeApp(testDB, testCfg)
 
 	// 1. Создание нового ПВЗ (требуется роль moderator)
@@ -96,7 +94,6 @@ func setupTestDB(ctx context.Context, t *testing.T) (testcontainers.Container, s
 			wait.ForLog("database system is ready to accept connections"),
 			wait.ForListeningPort("5432/tcp"),
 		),
-		// Добавляем команду для создания расширения при старте
 		LifecycleHooks: []testcontainers.ContainerLifecycleHooks{
 			{
 				PostStarts: []testcontainers.ContainerHook{
@@ -135,7 +132,6 @@ func connectToTestDB(t *testing.T, dsn string) *sql.DB {
 	for i := 0; i < 5; i++ {
 		testDB, err = db.InitializeTestDB(dsn)
 		if err == nil {
-			// Проверяем наличие необходимых расширений
 			_, err = testDB.Exec(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
 			if err != nil {
 				t.Logf("Ошибка при проверке расширений: %v", err)
@@ -154,7 +150,6 @@ func connectToTestDB(t *testing.T, dsn string) *sql.DB {
 func applyMigrations(t *testing.T, db *sql.DB) {
 	t.Log("Применение SQL миграций...")
 
-	// Подключаем необходимое расширение
 	_, err := db.Exec(`CREATE EXTENSION IF NOT EXISTS "pgcrypto"`)
 	assert.NoError(t, err, "Не удалось подключить расширение pgcrypto")
 
@@ -188,14 +183,12 @@ func applyMigrations(t *testing.T, db *sql.DB) {
 			created_at TIMESTAMP DEFAULT NOW()
 		);
 
-		-- Добавляем тестового модератора с хешированным паролем
 		INSERT INTO users (email, password, role) VALUES (
 			'moderator@test.com',
 			crypt('moderator123', gen_salt('bf')),
 			'moderator'
 		) ON CONFLICT DO NOTHING;
 
-		-- Добавляем тестового сотрудника с хешированным паролем
 		INSERT INTO users (email, password, role) VALUES (
 			'employee@test.com',
 			crypt('employee123', gen_salt('bf')),

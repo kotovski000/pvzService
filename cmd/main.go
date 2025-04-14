@@ -32,7 +32,6 @@ func startGRPCServerAsync(db *sql.DB, port string) {
 }
 
 func main() {
-	// Load .env file
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Error loading .env file")

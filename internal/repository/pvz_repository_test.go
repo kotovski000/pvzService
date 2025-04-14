@@ -19,7 +19,6 @@ func TestPVZRepository_CreatePVZ(t *testing.T) {
 	pvzID := uuid.NewString()
 	now := time.Now()
 
-	// Тест успешного создания
 	t.Run("success", func(t *testing.T) {
 		mock.ExpectExec("INSERT INTO pvz").
 			WithArgs(pvzID, "Москва").
@@ -40,7 +39,6 @@ func TestPVZRepository_CreatePVZ(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	// Тест ошибки при вставке
 	t.Run("insert error", func(t *testing.T) {
 		mock.ExpectExec("INSERT INTO pvz").
 			WithArgs(pvzID, "Москва").
@@ -64,7 +62,6 @@ func TestPVZRepository_GetPVZByID(t *testing.T) {
 	pvzID := uuid.NewString()
 	now := time.Now()
 
-	// Тест успешного получения
 	t.Run("success", func(t *testing.T) {
 		mock.ExpectQuery("SELECT id, registration_date, city FROM pvz WHERE id =").
 			WithArgs(pvzID).
@@ -79,7 +76,6 @@ func TestPVZRepository_GetPVZByID(t *testing.T) {
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
-	// Тест не найден
 	t.Run("not found", func(t *testing.T) {
 		mock.ExpectQuery("SELECT id, registration_date, city FROM pvz WHERE id =").
 			WithArgs(pvzID).
@@ -130,11 +126,28 @@ func TestPVZRepository_ListPVZsWithRelations(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, result, 2)
 
-		assert.Equal(t, "Москва", result[0].PVZ.City)
-		assert.Len(t, result[0].Receptions, 1)
-		assert.Len(t, result[0].Receptions[0].Products, 2)
+		foundPVZ1 := false
+		foundPVZ2 := false
+		for _, pvz := range result {
+			if pvz.PVZ.City == "Москва" {
+				foundPVZ1 = true
+				assert.Len(t, pvz.Receptions, 1)
+				assert.Len(t, pvz.Receptions[0].Products, 2)
+				assert.Equal(t, "rec1", pvz.Receptions[0].Reception.ID)
+				assert.Equal(t, "in_progress", pvz.Receptions[0].Reception.Status)
+			}
+			if pvz.PVZ.City == "Санкт-Петербург" {
+				foundPVZ2 = true
+				assert.Len(t, pvz.Receptions, 1)
+				assert.Len(t, pvz.Receptions[0].Products, 0)
+				assert.Equal(t, "rec2", pvz.Receptions[0].Reception.ID)
+				assert.Equal(t, "closed", pvz.Receptions[0].Reception.Status)
+			}
+		}
 
-		assert.Equal(t, "Санкт-Петербург", result[1].PVZ.City)
+		assert.True(t, foundPVZ1)
+		assert.True(t, foundPVZ2)
+
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 }

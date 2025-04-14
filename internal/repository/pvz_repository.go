@@ -69,11 +69,11 @@ func (r *PVZRepositoryImpl) ListPVZsWithRelations(startDate, endDate time.Time, 
 
 	if !startDate.IsZero() && !endDate.IsZero() {
 		query += " WHERE p.registration_date >= $1 AND p.registration_date <= $2"
-		query += " ORDER BY p.registration_date"
+		query += " ORDER BY p.registration_date ASC"
 		query += " LIMIT $3 OFFSET $4"
 		rows, err = r.db.Query(query, startDate, endDate, limit, offset)
 	} else {
-		query += " ORDER BY p.registration_date"
+		query += " ORDER BY p.registration_date ASC"
 		query += " LIMIT $1 OFFSET $2"
 		rows, err = r.db.Query(query, limit, offset)
 	}

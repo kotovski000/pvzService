@@ -34,7 +34,6 @@ func MakeApp(database *sql.DB, cfg config.Config) *fiber.App {
 
 	app := fiber.New()
 
-	// Common middleware
 	app.Use(cors.New())
 	app.Use(logger.New(logger.Config{
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path}\n",

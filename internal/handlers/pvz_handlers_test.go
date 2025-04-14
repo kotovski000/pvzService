@@ -150,7 +150,6 @@ func TestPVZHandlers_GetPVZListHandler(t *testing.T) {
 		page := 1
 		limit := 10
 
-		// Update mock expectation to accept empty strings for dates
 		mockProcessor.On("ListPVZsWithRelations", "", "", page, limit).
 			Return(expected, nil)
 
@@ -192,13 +191,11 @@ func TestPVZHandlers_GetPVZListHandler(t *testing.T) {
 	t.Run("invalid limit (too large)", func(t *testing.T) {
 		app.Get("/pvz", handler.GetPVZListHandler())
 
-		// Test with limit above maximum allowed (31 when max is 30)
 		req := httptest.NewRequest("GET", "/pvz?page=1&limit=31", nil)
 		resp, err := app.Test(req)
 		assert.NoError(t, err)
 		assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 
-		// Verify the error message
 		var errorResp models.Error
 		err = json.NewDecoder(resp.Body).Decode(&errorResp)
 		assert.NoError(t, err)
@@ -206,7 +203,7 @@ func TestPVZHandlers_GetPVZListHandler(t *testing.T) {
 	})
 
 	t.Run("valid maximum limit", func(t *testing.T) {
-		expected := []repository.PVZResponse{ /* mock data */ }
+		expected := []repository.PVZResponse{}
 
 		mockProcessor.On("ListPVZsWithRelations", "", "", 1, 30).
 			Return(expected, nil)

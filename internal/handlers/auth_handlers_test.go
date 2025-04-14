@@ -174,7 +174,6 @@ func TestGenerateToken(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
 
-	// Verify the token
 	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		return []byte("secret"), nil
 	})

@@ -203,7 +203,7 @@ func TestCloseReception(t *testing.T) {
 
 		err := repo.CloseReception(receptionID, closeTime)
 
-		assert.NoError(t, err) // Or assert.Error if you want to handle this case as an error
+		assert.NoError(t, err)
 		assert.NoError(t, mock.ExpectationsWereMet())
 	})
 
