@@ -51,7 +51,7 @@ go mod tidy
 
 ## Мониторинг
 - Prometheus доступен на ```http://localhost:9090```;
-- Метрики приложения доступны на ```http://localhost:<метрики-порт>/metrics```;
+- Метрики приложения доступны на ```http://localhost:<порт-метрики>/metrics```;
 
 ## GRPC
 - GRPC доступен на ```http://localhost:3000```
