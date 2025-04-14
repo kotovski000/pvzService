@@ -9,18 +9,27 @@ import (
 )
 
 func InitializeDB(dsn string) (*sql.DB, error) {
+	return initializeWithRetry(dsn, 5, 2*time.Second)
+}
+
+func InitializeTestDB(dsn string) (*sql.DB, error) {
+	return initializeWithRetry(dsn, 3, 1*time.Second)
+}
+
+func initializeWithRetry(dsn string, maxRetries int, delay time.Duration) (*sql.DB, error) {
 	var db *sql.DB
 	var err error
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < maxRetries; i++ {
 		db, err = sql.Open("postgres", dsn)
 		if err == nil {
 			err = db.Ping()
 			if err == nil {
+
 				return db, nil
 			}
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(delay)
 	}
-	return nil, fmt.Errorf("failed to connect to DB after retries: %w", err)
+	return nil, fmt.Errorf("failed to connect to DB after %d retries: %w", maxRetries, err)
 }
