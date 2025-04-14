@@ -69,4 +69,8 @@ ok      pvzService/internal/handlers    0.408s  coverage: 85.3% of statements
 ok      pvzService/internal/processors  11.306s coverage: 81.5% of statements
 ok      pvzService/internal/repository  0.599s  coverage: 84.5% of statements
 ```
+## Postman
+Коллекция с тестовыми запросами и описанием данных для тестирования
+https://documenter.getpostman.com/view/33532948/2sB2ca6zYq
+
 
