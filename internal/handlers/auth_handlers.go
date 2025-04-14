@@ -25,7 +25,7 @@ func (h *AuthHandlers) GenerateToken(userID, role string) (string, error) {
 	claims := jwt.MapClaims{
 		"userId": userID,
 		"role":   role,
-		"exp":    time.Now().Add(time.Hour * 24).Unix(),
+		"exp":    time.Now().Add(time.Hour * 1).Unix(),
 		"iat":    time.Now().Unix(),
 		"nbf":    time.Now().Unix(),
 	}

@@ -185,5 +185,5 @@ func TestGenerateToken(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "user123", claims["userId"])
 	assert.Equal(t, "employee", claims["role"])
-	assert.InDelta(t, time.Now().Add(24*time.Hour).Unix(), claims["exp"].(float64), 10)
+	assert.InDelta(t, time.Now().Add(time.Hour*1).Unix(), claims["exp"].(float64), 10)
 }

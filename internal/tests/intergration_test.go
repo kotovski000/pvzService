@@ -75,7 +75,7 @@ func generateTokenWithRole(role string, secret string) (string, error) {
 	claims := jwt.MapClaims{
 		"userId": "test-user",
 		"role":   role,
-		"exp":    time.Now().Add(time.Hour * 24).Unix(),
+		"exp":    time.Now().Add(time.Hour * 1).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

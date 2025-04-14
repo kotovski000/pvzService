@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"pvzService/internal/models"
@@ -22,10 +23,9 @@ func AuthMiddleware(secret string) fiber.Handler {
 		})
 
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(models.Error{Message: "Invalid token"})
-		}
-
-		if !tkn.Valid {
+			if errors.Is(err, jwt.ErrTokenExpired) && !tkn.Valid {
+				return c.Status(fiber.StatusUnauthorized).JSON(models.Error{Message: "Invalid token expiration"})
+			}
 			return c.Status(fiber.StatusUnauthorized).JSON(models.Error{Message: "Invalid token"})
 		}
 

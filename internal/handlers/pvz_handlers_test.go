@@ -1,4 +1,4 @@
-package handlers_test
+package handlers
 
 import (
 	"bytes"
@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"pvzService/internal/handlers"
 	"pvzService/internal/models"
 	"pvzService/internal/repository"
 )
@@ -39,7 +38,7 @@ func (m *MockPVZProcessor) ListPVZsWithRelations(startDate, endDate string, page
 func TestPVZHandlers_CreatePVZHandler(t *testing.T) {
 	app := fiber.New()
 	mockProcessor := new(MockPVZProcessor)
-	handler := handlers.NewPVZHandlers(mockProcessor)
+	handler := NewPVZHandlers(mockProcessor)
 
 	t.Run("success", func(t *testing.T) {
 		expectedPVZ := models.PVZ{
@@ -75,7 +74,7 @@ func TestPVZHandlers_CreatePVZHandler(t *testing.T) {
 func TestPVZHandlers_GetPVZListHandler(t *testing.T) {
 	app := fiber.New()
 	mockProcessor := new(MockPVZProcessor)
-	handler := handlers.NewPVZHandlers(mockProcessor)
+	handler := NewPVZHandlers(mockProcessor)
 
 	t.Run("success with UTC timezone", func(t *testing.T) {
 		expected := []repository.PVZResponse{
